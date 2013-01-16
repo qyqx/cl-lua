@@ -9,8 +9,20 @@
 (defun mid-val (a b c)
   b)
 
+(defun nil-fun (a b)
+  ())
+
 (defun infix->prefix (a b c)
   (list b c a))
+
+(defun add-list (args)
+  `(list ,@args))
+
+(defun make-singelton-list (arg)
+  `(list ,arg))
+
+(defun unpack-explist (exp comma explist)
+  `(,exp ,@explist))
 (cl-lex:define-string-lexer lua-lexer
 			    ("\"(\\\\\"|\\\\|[^\"\\\\])*\"" (return (values 'string (read-from-string $@)))) ;yes I am lazy. Replace read-from-string later. I swear this regex will match strings. TODO: single-quoted strings
 			    ("(function|do|end|while|repeat|until|if|then|elseif|else|local|return|break)\\b" (return (values (intern (string-upcase $1)) (intern (string-upcase $1)))))
@@ -84,9 +96,11 @@
 		    (namelist
 		     name
 		     (name comma namelist))
-		    (explist
+		    (explist*
 		     (exp)
-		     (exp comma explist))
+		     (exp comma explist* #'unpack-explist))
+		    (explist
+		     (explist* #'add-list))
 		    (exp
 		     lua-nil
 		     false
@@ -107,10 +121,10 @@
 		     (prefixexp args #'parse-funcall-standard)
 		     (prefixexp colon name args))
 		    (args
-		     (left-paren right-paren)
+		     (left-paren right-paren #'nil)
 		     (left-paren explist right-paren #'mid-val)
 		     tableconstructor
-		     string)
+		     (string #'make-singelton-list))
 		    (fundef
 		     (function funcbody))
 		    (funcbody
@@ -134,4 +148,8 @@
 		    (unop - not hashtag))
 
 (defun parse-lua (string)
-  (yacc:parse-with-lexer (lua-lexer string) *lua-parser*))
+  (parse-with-lexer (lua-lexer string) *lua-parser*))
+
+(in-package :cl-user)
+(defun parse-lua (string)
+  (cl-lua:parse-lua string))
